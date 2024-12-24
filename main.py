@@ -10,16 +10,16 @@ from datetime import datetime
 import logging
 import urllib.parse
 
-# 配置日志
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 代理设置
+# Proxy settings
 PROXY = 'http://127.0.0.1:10900'
 
-# 创建必要的目录
+# Create necessary directories
 def ensure_directories():
-    """确保所有必要的目录都存在"""
+    """Ensure all required directories exist"""
     directories = [
         "static",
         "static/videos",
@@ -28,23 +28,23 @@ def ensure_directories():
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
 
-# 确保目录存在
+# Ensure directories exist
 ensure_directories()
 
 app = FastAPI()
 
-# 挂载静态文件和模板
+# Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# 视频目录
+# Video directory
 VIDEOS_DIR = "static/videos"
 
-# 存储视频信息的JSON文件
+# JSON file for storing video information
 VIDEOS_INFO_FILE = "videos_info.json"
 
 def is_valid_youtube_url(url):
-    """验证是否是有效的YouTube URL"""
+    """Validate if the URL is a valid YouTube URL"""
     try:
         parsed = urllib.parse.urlparse(url)
         return ('youtube.com' in parsed.netloc or 'youtu.be' in parsed.netloc)
@@ -62,7 +62,7 @@ def save_videos_info(info):
         json.dump(info, f, ensure_ascii=False, indent=2)
 
 def get_video_info(url):
-    """使用yt-dlp获取视频信息"""
+    """Get video information using yt-dlp"""
     try:
         if not is_valid_youtube_url(url):
             raise HTTPException(status_code=400, 
@@ -95,14 +95,14 @@ def get_video_info(url):
                           detail=f"Failed to get video info: {str(e)}")
 
 def download_video_sync(url, output_dir):
-    """同步下载视频"""
+    """Synchronous video download function"""
     ydl_opts = {
-        'format': 'best',  # 选择最佳质量
+        'format': 'best',  # Select best quality
         'outtmpl': f'{output_dir}/%(title)s.%(ext)s',
-        'verbose': True,  # 启用详细日志
-        'progress': True,  # 显示进度
-        'ignoreerrors': False,  # 不忽略错误
-        'no_warnings': False,  # 显示警告
+        'verbose': True,  # Enable verbose logging
+        'progress': True,  # Show progress
+        'ignoreerrors': False,  # Don't ignore errors
+        'no_warnings': False,  # Show warnings
     }
     
     if PROXY:
@@ -133,18 +133,18 @@ async def download_video(request: Request):
         output_dir = f'{VIDEOS_DIR}/{video_id}'
         os.makedirs(output_dir, exist_ok=True)
         
-        # 获取视频信息
+        # Get video information
         info = get_video_info(url)
         logger.info(f"Video info: {info}")
         
-        # 使用线程池执行下载
+        # Use thread pool for download
         try:
             await asyncio.to_thread(download_video_sync, url, output_dir)
         except Exception as e:
             logger.error(f"Download failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
         
-        # 获取下载的文件
+        # Get downloaded file
         files = os.listdir(output_dir)
         if not files:
             logger.error("No files found in output directory after download")
@@ -154,7 +154,7 @@ async def download_video(request: Request):
         file_path = f'{output_dir}/{video_file}'
         logger.info(f"Download completed: {file_path}")
         
-        # 保存视频信息
+        # Save video information
         video_info = {
             'id': video_id,
             'title': info['title'],
